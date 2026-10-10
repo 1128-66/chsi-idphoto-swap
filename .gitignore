@@ -1,0 +1,23 @@
+# 运行时产物（每次运行自动生成，不入库）
+wg-client.conf
+wg-client-qr.png
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# macOS
+.DS_Store
+._*
+
+# 图片素材（二维码里含隧道私钥，绝不入库）
+*.jpg
+*.jpeg
+*.png
+
+# 编辑器
+.vscode/
+.idea/
