@@ -23,7 +23,7 @@ App 的上传鉴权（JWE 加密 + RSA 封装）全在客户端算好后由服�
 
 ## 环境要求
 
-- macOS（脚本用到 `sips`、`osascript`、`open`、`pbcopy`）
+- macOS（脚本用到 `sips`、`osascript`、`open`、`ipconfig`、`lsof`）
 - [mitmproxy](https://mitmproxy.org/)：`brew install mitmproxy`
 - Python 3（生成二维码需要 `segno`，脚本会自动尝试安装）
 - 手机与 Mac **在同一个可达网络**（通常是同一个 Wi-Fi）
@@ -43,7 +43,7 @@ App 的上传鉴权（JWE 加密 + RSA 封装）全在客户端算好后由服�
 ### 2. 手机连入隧道
 
 打开手机上的 WireGuard → 添加隧道 → 扫描 `wg-client-qr.png`
-（扫不动就用「从剪贴板导入」，脚本已把配置放进剪贴板）→ 打开开关。
+（扫不动就按 `wg-client.conf` 里的内容手动新建一条隧道）→ 打开开关。
 
 终端出现下面这行，说明手机连上了：
 
@@ -133,3 +133,30 @@ OSS policy 限制 `content-length-range` 为 1KB~1MB。脚本会自动压缩，
   电脑的出网也依赖手机，会形成环路死锁 —— 除非电脑另有一条独立外网。
 - WireGuard 隧道存活期间，手机会断掉自己的直连网络。
 - 只放行 OSS 主机（`--allow-hosts`），其余请求不做拦截，避免影响 App 其它功能。
+
+---
+
+## 其他平台：欢迎社区接力
+
+目前只做了 macOS 版。好消息是**要移植的东西比看起来少** ——
+`mitm_replace_photo.py`（真正干活的插件）和 `chsi_idphoto_tool.py`
+都是**纯 Python、跨平台**，不需要改；需要重写的只是外面那层壳：
+选图、压缩、起进程、出隧道二维码。
+
+几个大方向，供有需要的人参考：
+
+| 场景 | 大概方向 |
+|---|---|
+| **Windows** | `mitmdump -m wireguard@<IP>:51820` 本身就能跑，主要记得**放行 UDP 入站**（防火墙勾"专用网络"），否则手机永远握手不上。想省事可直接用 `mitmweb --mode wireguard`——它自带二维码，不必自己写出码脚本。外壳从 bash 换成 `.bat` / PowerShell |
+| **Linux** | 与 macOS 基本一致，换个取本机 IP 的方式即可 |
+| **不想用真机** | 在安卓模拟器里跑：`adb reverse tcp:8080 tcp:8080` + 系统代理，把 CA 装进**系统**证书区（Android 7+ 不信任用户证书）。App 注册了 `chesicc://idphoto` 深链，还能免掉扫码 |
+| **没有第二条外网** | 「手机给电脑供网」会环路死锁，这是物理限制；反过来让**电脑开热点给手机连**就成立了 |
+
+移植时请**别省**下面这几条，它们是这个方案能成立的关键：
+
+- 替换失败时**掐断请求**（fail-safe）—— 放行就意味着现场拍的原图漏出去了
+- `ETag == 本地 MD5` 的校验 —— 这是"服务端真存了本地图"的密码学证明
+- **上传成功后不要立刻停 mitmdump** —— WireGuard 服务端就在这个进程里，
+  一停手机会整机断网，App 后续步骤全走不完
+
+有移植好的版本，欢迎提 Issue / PR。
